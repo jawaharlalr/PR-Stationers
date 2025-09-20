@@ -1,6 +1,6 @@
 // src/pages/ProductDetails.jsx
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { auth, db } from "../firebase";
 import { doc, setDoc } from "firebase/firestore";
@@ -28,7 +28,7 @@ export default function ProductDetails() {
 
   if (!product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-10 text-center text-gray-600">
+      <div className="px-4 py-10 mx-auto text-center text-gray-600 max-w-7xl min-h-[80vh]">
         Product not found.
       </div>
     );
@@ -41,71 +41,83 @@ export default function ProductDetails() {
       toast.error("Please select color, size, and a valid quantity.");
       return;
     }
+
+    const user = auth.currentUser;
+    if (!user) {
+      toast.error("Please login to save cart.");
+      return;
+    }
+
     if (added) {
       toast.error(`${product.name} is already in the cart.`);
       return;
     }
 
-    // Add to local cart context
-    addToCart(product, { color: selectedColor, size: selectedSize, quantity });
-
-    // Persist in Firebase under current user's cart
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        toast.error("Please login to save cart.");
-        return;
-      }
-      const cartRef = doc(db, "users", user.uid, "cart", product.id);
+      // Persist in Firestore first
+      const cartRef = doc(db, "users", user.uid, "cart", product.id.toString());
       await setDoc(cartRef, {
         productId: product.id,
         name: product.name,
         price: product.price,
         image: product.image,
         category: product.category,
+        description: product.description || "",
+        colors: product.colors || [],
+        sizes: product.sizes || [],
         selectedOptions: { color: selectedColor, size: selectedSize },
         quantity,
-        createdAt: new Date(),
+        addedAt: new Date(),
       });
-      toast.success(`${product.name} added to cart!`);
+
+      // Only add to local cart if Firestore succeeded
+      addToCart(product, { color: selectedColor, size: selectedSize, quantity });
+      toast.success(`${product.name} added to cart successfully!`);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to add to cart.");
+      toast.error("Failed to add cart. Please try again.");
     }
   };
 
+  // Wrapper styles: min-height + bottom padding to avoid overlap with fixed navbar
+  const pageWrapperClasses =
+    "relative max-w-5xl px-4 py-10 pb-32 mx-auto min-h-[calc(100vh-80px)]";
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10 relative">
+    <div className={pageWrapperClasses}>
       {/* Close Button */}
       <button
         onClick={() => navigate(-1)}
-        className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition"
+        className="absolute text-gray-500 transition top-4 right-4 hover:text-gray-700"
         aria-label="Close"
       >
         <X size={24} />
       </button>
 
-      <div className="flex flex-col md:flex-row gap-10">
+      <div className="flex flex-col gap-10 md:flex-row">
         {/* Product Image */}
-        <div className="flex-1 flex justify-center items-center bg-gray-50 p-6 rounded-xl shadow-md">
+        <div className="flex items-center justify-center flex-1 p-6 shadow-md bg-gray-50 rounded-xl">
           <img
             src={product.image}
             alt={product.name}
-            className="w-auto max-w-full h-64 md:h-96 object-contain"
+            className="object-contain w-auto h-64 max-w-full md:h-96"
           />
         </div>
 
         {/* Product Details */}
-        <div className="flex-1 flex flex-col gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+        <div className="flex flex-col flex-1 gap-4">
+          <h1 className="text-2xl font-bold text-gray-800 md:text-3xl">
             {product.name}
           </h1>
           <p className="text-gray-500 capitalize">Category: {product.category}</p>
+          {product.description && (
+            <p className="text-gray-600">{product.description}</p>
+          )}
           <p className="text-2xl font-semibold text-green-600">₹{product.price}</p>
 
           {/* Colors */}
           {product.colors?.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-gray-700">Color:</span>
               {product.colors.map((color) => (
                 <button
@@ -115,14 +127,14 @@ export default function ProductDetails() {
                     selectedColor === color ? "border-black" : "border-gray-300"
                   } ${colorClasses[color] || "bg-gray-200"}`}
                   title={color}
-                ></button>
+                />
               ))}
             </div>
           )}
 
           {/* Sizes */}
           {product.sizes?.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-gray-700">Size:</span>
               {product.sizes.map((size) => (
                 <button
@@ -148,7 +160,7 @@ export default function ProductDetails() {
               min={1}
               value={quantity}
               onChange={(e) => setQuantity(parseInt(e.target.value))}
-              className="w-20 px-2 py-1 border rounded text-gray-700"
+              className="w-20 px-2 py-1 text-gray-700 border rounded"
             />
           </div>
 
