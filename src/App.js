@@ -8,6 +8,9 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Contact from "./pages/Contact"; // ✅ New Contact Page
+import Checkout from "./pages/Checkout";
+import MyOrders from "./pages/MyOrders";
+import OrderDetails from "./pages/OrderDetails";
 import { CartProvider } from "./context/CartContext";
 import { Toaster } from "react-hot-toast";
 import { auth, db } from "./firebase";
@@ -85,6 +88,9 @@ function App() {
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/orders" element={<MyOrders />} />
+            <Route path="/order/:id" element={<OrderDetails />} />
 
             {/* Static Pages */}
             <Route
