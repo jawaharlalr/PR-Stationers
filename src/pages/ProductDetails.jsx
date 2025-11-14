@@ -1,6 +1,6 @@
 // src/pages/ProductDetails.jsx
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { auth, db } from "../firebase";
 import { doc, setDoc } from "firebase/firestore";
@@ -17,6 +17,22 @@ export default function ProductDetails() {
   const [selectedSize, setSelectedSize] = useState(null);
   const [quantity, setQuantity] = useState(1);
 
+  // FINAL merged values from Products.jsx
+  const colors = product?.colors || [];
+  const sizes = product?.sizes || [];
+
+  useEffect(() => {
+    if (!product) return;
+
+    // Auto-select when empty
+    if (colors.length === 0) {
+      setSelectedColor("Default");
+    }
+    if (sizes.length === 0) {
+      setSelectedSize("Default");
+    }
+  }, [product]);
+
   const colorClasses = {
     Red: "bg-red-500",
     Blue: "bg-blue-600",
@@ -24,6 +40,7 @@ export default function ProductDetails() {
     Yellow: "bg-yellow-400",
     Black: "bg-black",
     White: "bg-white border-gray-300",
+    Default: "bg-gray-300",
   };
 
   if (!product) {
@@ -37,8 +54,17 @@ export default function ProductDetails() {
   const added = !!cart[product.id];
 
   const handleAddToCart = async () => {
-    if (!selectedColor || !selectedSize || quantity < 1) {
-      toast.error("Please select color, size, and a valid quantity.");
+    // Validation
+    if (colors.length > 0 && !selectedColor) {
+      toast.error("Please select a color.");
+      return;
+    }
+    if (sizes.length > 0 && !selectedSize) {
+      toast.error("Please select a size.");
+      return;
+    }
+    if (quantity < 1) {
+      toast.error("Please enter a valid quantity.");
       return;
     }
 
@@ -54,24 +80,27 @@ export default function ProductDetails() {
     }
 
     try {
-      // Persist in Firestore first
       const cartRef = doc(db, "users", user.uid, "cart", product.id.toString());
       await setDoc(cartRef, {
         productId: product.id,
         name: product.name,
         price: product.price,
-        image: product.image,
+        image: product.imageUrl || product.image,
         category: product.category,
         description: product.description || "",
-        colors: product.colors || [],
-        sizes: product.sizes || [],
+        colors,
+        sizes,
         selectedOptions: { color: selectedColor, size: selectedSize },
         quantity,
         addedAt: new Date(),
       });
 
-      // Only add to local cart if Firestore succeeded
-      addToCart(product, { color: selectedColor, size: selectedSize, quantity });
+      addToCart(product, {
+        color: selectedColor,
+        size: selectedSize,
+        quantity,
+      });
+
       toast.success(`${product.name} added to cart successfully!`);
     } catch (err) {
       console.error(err);
@@ -79,13 +108,12 @@ export default function ProductDetails() {
     }
   };
 
-  // Wrapper styles: min-height + bottom padding to avoid overlap with fixed navbar
   const pageWrapperClasses =
     "relative max-w-5xl px-4 py-10 pb-32 mx-auto min-h-[calc(100vh-80px)]";
 
   return (
     <div className={pageWrapperClasses}>
-      {/* Close Button */}
+      {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
         className="absolute text-gray-500 transition top-4 right-4 hover:text-gray-700"
@@ -98,28 +126,34 @@ export default function ProductDetails() {
         {/* Product Image */}
         <div className="flex items-center justify-center flex-1 p-6 shadow-md bg-gray-50 rounded-xl">
           <img
-            src={product.image}
+            src={product.imageUrl || product.image}
             alt={product.name}
             className="object-contain w-auto h-64 max-w-full md:h-96"
           />
         </div>
 
-        {/* Product Details */}
+        {/* Details */}
         <div className="flex flex-col flex-1 gap-4">
           <h1 className="text-2xl font-bold text-gray-800 md:text-3xl">
             {product.name}
           </h1>
+
           <p className="text-gray-500 capitalize">Category: {product.category}</p>
+
           {product.description && (
             <p className="text-gray-600">{product.description}</p>
           )}
-          <p className="text-2xl font-semibold text-green-600">₹{product.price}</p>
+
+          <p className="text-2xl font-semibold text-green-600">
+            ₹{product.price}
+          </p>
 
           {/* Colors */}
-          {product.colors?.length > 0 && (
+          {colors.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-gray-700">Color:</span>
-              {product.colors.map((color) => (
+
+              {colors.map((color) => (
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color)}
@@ -133,10 +167,11 @@ export default function ProductDetails() {
           )}
 
           {/* Sizes */}
-          {product.sizes?.length > 0 && (
+          {sizes.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-gray-700">Size:</span>
-              {product.sizes.map((size) => (
+
+              {sizes.map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
@@ -164,7 +199,6 @@ export default function ProductDetails() {
             />
           </div>
 
-          {/* Add to Cart */}
           <button
             onClick={handleAddToCart}
             disabled={added}

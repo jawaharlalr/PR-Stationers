@@ -5,125 +5,199 @@ import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-export default function AdminDashboard() {
+export default function Admin() {
+  const [stats, setStats] = useState({ users: 0, products: 0, orders: 0 });
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // ✅ Fetch all users (from Firestore)
-  const fetchUsers = async () => {
+  // FETCH ALL DASHBOARD DATA
+  const fetchData = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, "users"));
-      const userList = querySnapshot.docs.map((doc) => ({
+      const usersSnap = await getDocs(collection(db, "users"));
+      const productsSnap = await getDocs(collection(db, "products"));
+      const ordersSnap = await getDocs(collection(db, "orders"));
+
+      const usersList = usersSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      setUsers(userList);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Failed to fetch users");
+
+      setUsers(usersList);
+
+      setStats({
+        users: usersSnap.size,
+        products: productsSnap.size,
+        orders: ordersSnap.size,
+      });
+
+    } catch (err) {
+      console.error("Firestore fetch error:", err);
+      toast.error("Failed to load admin data.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Protect admin route (double-check role)
+  // ONLY ADMIN ACCESS
   useEffect(() => {
     const checkAdmin = async () => {
       const currentUser = auth.currentUser;
+
       if (!currentUser) {
         navigate("/login");
         return;
       }
+
       const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+
       if (!userDoc.exists() || userDoc.data().role !== "admin") {
         toast.error("Access denied! Admins only.");
         navigate("/");
         return;
       }
-      fetchUsers();
+
+      fetchData();
     };
 
     checkAdmin();
   }, [navigate]);
 
-  // ✅ Logout
   const handleLogout = async () => {
     try {
       await signOut(auth);
       toast.success("Logged out!");
       navigate("/login");
-    } catch (error) {
+    } catch {
       toast.error("Logout failed");
     }
   };
 
+  // Sidebar actions
+  const showUsers = () => toast.success("Showing Users");
+  const showProducts = () => toast.success("Showing Products");
+  const showOrders = () => toast.success("Showing Orders");
+
+  if (loading)
+    return (
+      <p className="mt-20 text-center text-gray-700">Loading dashboard...</p>
+    );
+
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      {/* Top Bar */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-        >
-          Logout
-        </button>
-      </div>
+    <div className="flex min-h-screen bg-gray-100">
 
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-medium text-gray-700">Total Users</h2>
-          <p className="text-3xl font-bold text-blue-600">{users.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-medium text-gray-700">Total Orders</h2>
-          <p className="text-3xl font-bold text-green-600">0</p> {/* hook later */}
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-medium text-gray-700">Revenue</h2>
-          <p className="text-3xl font-bold text-purple-600">₹0</p> {/* hook later */}
-        </div>
-      </div>
+      {/* SIDEBAR */}
+      <aside className="w-64 p-6 space-y-6 bg-white shadow-xl">
+        <h1 className="mb-4 text-2xl font-bold">Admin Panel</h1>
 
-      {/* Users List */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Manage Users</h2>
-        {loading ? (
-          <p>Loading users...</p>
-        ) : users.length === 0 ? (
-          <p>No users found.</p>
-        ) : (
-          <table className="w-full border-collapse border border-gray-300">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border p-2 text-left">Name</th>
-                <th className="border p-2 text-left">Email</th>
-                <th className="border p-2 text-left">Role</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50">
-                  <td className="border p-2">{u.displayName || "N/A"}</td>
-                  <td className="border p-2">{u.email}</td>
-                  <td className="border p-2">
-                    <span
-                      className={`px-2 py-1 rounded text-sm ${
-                        u.role === "admin"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-blue-100 text-blue-700"
-                      }`}
+        <nav className="space-y-3">
+          <button
+            onClick={showUsers}
+            className="w-full px-4 py-2 text-left text-white bg-blue-500 rounded-lg shadow hover:bg-blue-600"
+          >
+            Manage Users
+          </button>
+
+          <button
+            onClick={showProducts}
+            className="w-full px-4 py-2 text-left text-white bg-green-500 rounded-lg shadow hover:bg-green-600"
+          >
+            Manage Products
+          </button>
+
+          <button
+            onClick={showOrders}
+            className="w-full px-4 py-2 text-left text-white bg-purple-500 rounded-lg shadow hover:bg-purple-600"
+          >
+            Manage Orders
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="w-full px-4 py-2 text-left text-white bg-red-500 rounded-lg shadow hover:bg-red-600"
+          >
+            Logout
+          </button>
+        </nav>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <div className="flex-1 p-8">
+        <h1 className="mb-8 text-3xl font-bold">Dashboard Overview</h1>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 gap-6 mb-10 md:grid-cols-3">
+
+          <div className="p-6 transition bg-white shadow rounded-xl hover:shadow-lg">
+            <h2 className="text-lg font-semibold text-gray-600">Total Users</h2>
+            <p className="mt-2 text-3xl font-bold text-blue-600">
+              {stats.users}
+            </p>
+          </div>
+
+          <div className="p-6 transition bg-white shadow rounded-xl hover:shadow-lg">
+            <h2 className="text-lg font-semibold text-gray-600">
+              Total Products
+            </h2>
+            <p className="mt-2 text-3xl font-bold text-green-600">
+              {stats.products}
+            </p>
+          </div>
+
+          <div className="p-6 transition bg-white shadow rounded-xl hover:shadow-lg">
+            <h2 className="text-lg font-semibold text-gray-600">Total Orders</h2>
+            <p className="mt-2 text-3xl font-bold text-purple-600">
+              {stats.orders}
+            </p>
+          </div>
+        </div>
+
+        {/* USERS TABLE */}
+        <div className="p-6 bg-white shadow rounded-xl">
+          <h2 className="mb-4 text-xl font-semibold">Manage Users</h2>
+
+          {users.length === 0 ? (
+            <p className="text-gray-500">No users found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full overflow-hidden border border-gray-200 rounded-xl">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Name</th>
+                    <th className="px-4 py-3 text-left">Email</th>
+                    <th className="px-4 py-3 text-left">Role</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {users.map((u) => (
+                    <tr
+                      key={u.id}
+                      className="transition border-t hover:bg-gray-50"
                     >
-                      {u.role}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                      <td className="px-4 py-3">
+                        {u.displayName || "N/A"}
+                      </td>
+                      <td className="px-4 py-3">{u.email}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            u.role === "admin"
+                              ? "bg-red-100 text-red-600"
+                              : "bg-blue-100 text-blue-600"
+                          }`}
+                        >
+                          {u.role}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

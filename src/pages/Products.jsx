@@ -1,15 +1,80 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import products from "../data/products";
+import { useEffect, useState } from "react";
 import { Home } from "lucide-react";
 import { useCart } from "../context/CartContext";
+
+import { db } from "../firebase";
+import { collection, getDocs } from "firebase/firestore";
+
+// Local products
+import localProducts from "../data/products";
 
 export default function Products() {
   const location = useLocation();
   const navigate = useNavigate();
   const { cart } = useCart();
 
+  const [products, setProducts] = useState([]);
+
   const params = new URLSearchParams(location.search);
   const searchQuery = params.get("search") || "";
+
+  // Load & merge products from firestore + local
+  useEffect(() => {
+    const loadProducts = async () => {
+      const snap = await getDocs(collection(db, "products"));
+      const firestoreProducts = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      // 🔥 MERGE LOGIC — unify sizes + colors correctly
+      const productMap = new Map();
+
+      // Add local products
+      localProducts.forEach((p) => {
+        productMap.set(p.id, {
+          ...p,
+          sizes: p.sizes || p.size || [],
+          colors: p.colors || p.colours || [],
+        });
+      });
+
+      // Merge Firestore products
+      firestoreProducts.forEach((p) => {
+        const normalized = {
+          ...p,
+          sizes: p.sizes || p.size || [],
+          colors: p.colors || p.colours || [],
+        };
+
+        if (productMap.has(p.id)) {
+          const local = productMap.get(p.id);
+
+          productMap.set(p.id, {
+            ...local,
+            ...normalized,
+
+            // Merge sizes
+            sizes: Array.from(
+              new Set([...(local.sizes || []), ...(normalized.sizes || [])])
+            ),
+
+            // Merge colors
+            colors: Array.from(
+              new Set([...(local.colors || []), ...(normalized.colors || [])])
+            ),
+          });
+        } else {
+          productMap.set(p.id, normalized);
+        }
+      });
+
+      setProducts(Array.from(productMap.values()));
+    };
+
+    loadProducts();
+  }, []);
 
   const normalize = (str) =>
     str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -21,7 +86,7 @@ export default function Products() {
     : products;
 
   const handleCardClick = (product) => {
-    navigate(`/product/${product.id}`, { state: { product } }); // pass product via state
+    navigate(`/product/${product.id}`, { state: { product } });
   };
 
   const colorClasses = {
@@ -34,78 +99,84 @@ export default function Products() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-10 relative">
+    <div className="relative px-4 py-10 mx-auto max-w-7xl">
+      
       {/* Home Button */}
       <button
         onClick={() => navigate("/")}
-        className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition"
+        className="absolute text-gray-500 transition top-4 right-4 hover:text-gray-700"
         aria-label="Home"
       >
         <Home size={24} />
       </button>
 
       {filteredProducts.length === 0 ? (
-        <p className="text-center text-gray-600 text-lg mt-10">
+        <p className="mt-10 text-lg text-center text-gray-600">
           No products found for "<span className="font-semibold">{searchQuery}</span>"
         </p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 mt-4">
+        <div className="grid grid-cols-2 gap-6 mt-4 sm:grid-cols-3 md:grid-cols-4">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="bg-white rounded-xl shadow-md hover:shadow-lg transition overflow-hidden flex flex-col cursor-pointer"
+              className="flex flex-col overflow-hidden transition bg-white shadow-md cursor-pointer rounded-xl hover:shadow-lg"
             >
               {/* Image */}
               <div
-                className="w-full flex justify-center items-center bg-gray-50 p-4"
+                className="flex items-center justify-center w-full p-4 bg-gray-50"
                 onClick={() => handleCardClick(product)}
               >
                 <img
-                  src={product.image}
+                  src={product.imageUrl || product.image}
                   alt={product.name}
-                  className="w-auto max-w-full h-32 md:h-40 object-contain"
+                  className="object-contain w-auto h-32 max-w-full md:h-40"
                 />
               </div>
 
               {/* Product Details */}
-              <div className="p-4 flex flex-col gap-2">
+              <div className="flex flex-col gap-2 p-4">
                 <h3
-                  className="text-sm md:text-base font-medium text-gray-800"
+                  className="text-sm font-medium text-gray-800 md:text-base"
                   onClick={() => handleCardClick(product)}
                 >
                   {product.name}
                 </h3>
+
                 <p className="text-xs text-gray-500 capitalize">
                   Category: {product.category}
                 </p>
+
                 <p className="text-sm font-semibold text-green-600">
                   ₹{product.price}
                 </p>
 
-                {/* Available Colors */}
+                {/* Colors */}
                 {product.colors?.length > 0 && (
-                  <div className="flex items-center gap-1 flex-wrap mt-1">
-                    <span className="text-xs text-gray-500">Available Color:</span>
+                  <div className="flex flex-wrap items-center gap-1 mt-1">
+                    <span className="text-xs text-gray-500">Available Colors:</span>
                     {product.colors.map((color) => (
                       <span
                         key={color}
-                        className={`w-5 h-5 rounded-full border-2 ${colorClasses[color] || "bg-gray-200"}`}
+                        className={`w-5 h-5 rounded-full border-2 ${
+                          colorClasses[color] || "bg-gray-200"
+                        }`}
                         title={color}
                       ></span>
                     ))}
                   </div>
                 )}
 
-                {/* Available Sizes */}
+                {/* Sizes */}
                 {product.sizes?.length > 0 && (
-                  <div className="flex items-center gap-1 flex-wrap mt-1">
-                    <span className="text-xs text-gray-500">Available Size:</span>
-                    {product.sizes.map((size) => (
+                  <div className="flex flex-wrap items-center gap-1 mt-1">
+                    <span className="text-xs text-gray-500">Available Sizes:</span>
+
+                    {product.sizes.map((s) => (
                       <span
-                        key={size}
+                        key={s}
                         className="px-2 py-0.5 text-xs border rounded-full text-gray-700 bg-gray-100"
                       >
-                        {size}
+                        {s}
                       </span>
                     ))}
                   </div>

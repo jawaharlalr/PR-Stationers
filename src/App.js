@@ -7,6 +7,10 @@ import Cart from "./pages/Cart";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import AdminLogin from "./pages/AdminLogin";
+import ManageUsers from "./pages/ManageUsers";
+import ManageProducts from "./pages/ManageProducts";
+import ManageOrders from "./pages/ManageOrders";  
 import Contact from "./pages/Contact"; // ✅ New Contact Page
 import Checkout from "./pages/Checkout";
 import MyOrders from "./pages/MyOrders";
@@ -88,6 +92,22 @@ function App() {
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/admin/users" element={
+              <ProtectedRoute adminOnly>
+                <ManageUsers />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/products" element={
+              <ProtectedRoute adminOnly>
+                <ManageProducts />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/orders" element={
+              <ProtectedRoute adminOnly>
+                <ManageOrders />
+              </ProtectedRoute>
+            } />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/orders" element={<MyOrders />} />
             <Route path="/order/:id" element={<OrderDetails />} />

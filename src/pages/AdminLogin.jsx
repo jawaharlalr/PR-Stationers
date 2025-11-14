@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -29,7 +31,7 @@ export default function AdminLogin() {
         navigate("/admin");
       } else {
         toast.error("Access Denied! Not an admin.");
-        await signOut(auth); // log out non-admin
+        await signOut(auth);
       }
     } catch (error) {
       toast.error("Invalid credentials or access denied.");
@@ -40,11 +42,12 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6">Admin Login</h2>
+    <div className="flex items-center justify-center h-screen bg-gray-100">
+      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
+        <h2 className="mb-6 text-2xl font-bold text-center">Admin Login</h2>
 
         <form onSubmit={handleAdminLogin} className="space-y-4">
+          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
               Email
@@ -59,24 +62,37 @@ export default function AdminLogin() {
             />
           </div>
 
+          {/* Password with Eye Icon */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-blue-300"
-              placeholder="Enter password"
-              required
-            />
+
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring focus:ring-blue-300"
+                placeholder="Enter password"
+                required
+              />
+
+              {/* Eye Icon */}
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                className="absolute text-gray-600 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-800"
+              >
+                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="w-full py-2 text-white transition bg-blue-600 rounded-lg hover:bg-blue-700"
           >
             {loading ? "Logging in..." : "Login"}
           </button>

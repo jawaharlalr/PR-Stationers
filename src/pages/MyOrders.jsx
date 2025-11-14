@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedOrder, setExpandedOrder] = useState(null); // Track expanded order
+  const [expandedOrder, setExpandedOrder] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -104,30 +104,23 @@ export default function MyOrders() {
                     </p>
                   </div>
 
-                  {/* Product Table */}
+                  {/* Product Table (NO image column) */}
                   <div className="mt-2 overflow-x-auto">
                     <table className="min-w-full text-sm border border-gray-200 rounded-lg">
                       <thead className="bg-gray-100">
                         <tr>
                           <th className="p-2 text-left">S.No</th>
-                          <th className="p-2 text-left">Image</th>
                           <th className="p-2 text-left">Product</th>
                           <th className="p-2 text-left">Qty</th>
                           <th className="p-2 text-left">Price</th>
                           <th className="p-2 text-left">Total</th>
                         </tr>
                       </thead>
+
                       <tbody>
                         {order.items.map((item, i) => (
                           <tr key={i} className="border-t hover:bg-gray-50">
                             <td className="p-2">{i + 1}</td>
-                            <td className="p-2">
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="object-contain w-16 h-16 rounded"
-                              />
-                            </td>
                             <td className="p-2">{item.name}</td>
                             <td className="p-2">{item.quantity || 1}</td>
                             <td className="p-2">₹{item.price}</td>
@@ -157,13 +150,13 @@ export default function MyOrders() {
                     <p>
                       <strong>Status:</strong>{" "}
                       <span
-                        className={`${
+                        className={`font-medium ${
                           order.status === "Pending"
                             ? "text-yellow-600"
                             : order.status === "Delivered"
                             ? "text-green-600"
                             : "text-gray-600"
-                        } font-medium`}
+                        }`}
                       >
                         {order.status}
                       </span>
